@@ -90,8 +90,6 @@ def main():
 	glCullFace(GL_FRONT)
 
 	views = ["top", "bottom", "front", "back", "left", "right"]
-	
-	# boundingOrtho(display, BBox, "right")
 
 	while True:
 		for event in pygame.event.get():
