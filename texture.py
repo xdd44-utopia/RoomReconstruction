@@ -11,7 +11,7 @@ from PIL import Image
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
-from obj import OBJ
+from geometry import OBJ
 
 def boundingOrtho(display, bbox, view):
 	glLoadIdentity()
@@ -86,7 +86,7 @@ def main():
 	#gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
 
 	glEnable(GL_DEPTH_TEST)
-	glEnable(GL_CULL_FACE)
+	# glEnable(GL_CULL_FACE)
 	glCullFace(GL_FRONT)
 
 	views = ["top", "bottom", "front", "back", "left", "right"]

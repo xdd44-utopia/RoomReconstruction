@@ -1,5 +1,5 @@
-# import pygame
-# from OpenGL.GL import *
+import pygame
+from OpenGL.GL import *
 from tqdm import tqdm
 import math
 
@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from config import distLimit
+from utils.fit_plane import extract_planes
 
 def MTL(filename):
 	contents = {}
@@ -83,6 +84,9 @@ class OBJ:
 					else:
 						norms.append(0)
 				self.faces.append((face, norms, texcoords, material))
+		
+		print("Orienting Geometry...")
+		self.orient()
 
 		self.gl_list = glGenLists(1)
 		glNewList(self.gl_list, GL_COMPILE)
@@ -111,6 +115,36 @@ class OBJ:
 			glEnd()
 		glDisable(GL_TEXTURE_2D)
 		glEndList()
+
+	def rotate(self, angle):
+		for i in range(len(self.vertices)):
+			v = self.vertices[i]
+			self.vertices[i] = v[0] * math.cos(angle) - v[1] * math.sin(angle), v[0] * math.sin(angle) + v[1] * math.cos(angle), v[2]
+			vn = self.normals[i]
+			self.normals[i] = vn[0] * math.cos(angle) - vn[1] * math.sin(angle), vn[0] * math.sin(angle) + vn[1] * math.cos(angle), vn[2]
+	
+	def center(self):
+		bbox = self.BBox()
+		for i in range(len(self.vertices)):
+			v = self.vertices[i]
+			self.vertices[i] = v[0] - (bbox[1] - bbox[0]) / 2, v[1] - (bbox[3] - bbox[2]) / 2, v[2] - bbox[4]
+	
+	def orient(self):
+		vertices = [list(v) for v in self.vertices]
+		sample_points = np.random.choice(len(vertices), int(len(vertices) / 10)).tolist()
+		plane_eqs, plane_points, remaining_points = extract_planes(np.array(vertices)[sample_points])
+
+		norm = plane_eqs[0]
+		i = 0
+		while (norm[2] > 0.01 and i < len(plane_eqs)):
+			i += 1
+			norm = plane_eqs[i]
+		theta = math.atan(norm[1] / norm[0])
+
+		print("Rotating...")
+		self.rotate(-theta)
+		print("Centering...")
+		self.center()
 
 	def BBox(self):
 		left = min(self.vertices, key = lambda x: x[0])
@@ -145,7 +179,7 @@ class NakedOBJ:
 				if not values: continue
 				if values[0] == 'v':
 					v = list(map(float, values[1:4]))
-					v = v[0], v[2], v[1]
+					v = [v[0], v[2], v[1]]
 					self.vertices.append(v)
 				elif values[0] == 'f':
 					face = []
@@ -153,6 +187,15 @@ class NakedOBJ:
 						w = v.split('/')
 						face.append(int(w[0]))
 					self.faces.append(face)
+	
+	def rotate(self, angle):
+		for i in range(len(self.vertices)):
+			v = self.vertices[i]
+			self.vertices[i] = [
+				v[0] * math.cos(angle) - v[1] * math.sin(angle),
+				v[0] * math.sin(angle) + v[1] * math.cos(angle),
+				v[2]
+			]
 
 	def export(self, filename):
 		with open(filename, 'w') as file:
@@ -229,7 +272,37 @@ def extractBoundary(model):
 
 if __name__ == "__main__":
 
-	model = NakedOBJ("testSimple.obj")
+	model = NakedOBJ("testOrient.obj")
+	
+	sample_points = np.random.choice(len(model.vertices), int(len(model.vertices) / 500)).tolist()
+
+	x = np.array([v[0] for v in np.array(model.vertices)[sample_points]])
+	y = np.array([v[1] for v in np.array(model.vertices)[sample_points]])
+	plt.figure(figsize=(10,10))
+	plt.scatter(x, y, marker='o')
+
+	sample_points = np.random.choice(len(model.vertices), int(len(model.vertices) / 10)).tolist()
+	plane_eqs, plane_points, remaining_points = extract_planes(np.array(model.vertices)[sample_points])
+	print("Plane extracted")
+
+	norm = plane_eqs[0]
+	i = 0
+	while (norm[2] > 0.01 and i < len(plane_eqs)):
+		i += 1
+		norm = plane_eqs[i]
+	theta = math.atan(norm[1] / norm[0])
+	model.rotate(-theta)
+	print("Model rotated")
+
+	sample_points = np.random.choice(len(model.vertices), int(len(model.vertices) / 500)).tolist()
+
+	x = np.array([v[0] for v in np.array(model.vertices)[sample_points]])
+	y = np.array([v[1] for v in np.array(model.vertices)[sample_points]])
+	plt.scatter(x, y, marker='^')
+
+	plt.show()
+
+	quit()
 
 	boundary = extractBoundary(model)
 
@@ -245,7 +318,7 @@ if __name__ == "__main__":
 	x = np.array([v.x for v in boundary])
 	y = np.array([v.y for v in boundary])
 	plt.figure(figsize=(10,10))
-	plt.plot(x, y)
+	plt.scatter(x, y)
 	plt.savefig('100.jpg')
 		
 	print(len(boundary))
