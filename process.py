@@ -11,7 +11,7 @@ from PIL import Image
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
-from geometry import OBJ
+from utils.geometry import OBJ
 
 def boundingOrtho(display, bbox, view):
 	glLoadIdentity()
@@ -71,6 +71,7 @@ def captureTexture(display, model, view):
 	glReadPixels(0, 0, display[0], display[1], GL_RGBA, GL_UNSIGNED_BYTE , pixels)
 	image = Image.frombytes(mode="RGBA", size=(display[0], display[1]), data = pixels)
 	image = image.transpose(Image.FLIP_TOP_BOTTOM)
+	image = image.crop(image.getbbox())
 	image.save(f"Test/{view}.png")
 
 def main():

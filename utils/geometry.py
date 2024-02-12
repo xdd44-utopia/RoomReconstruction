@@ -6,7 +6,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 
-from config import distLimit
+from utils.config import distLimit
 from utils.fit_plane import extract_planes
 
 def MTL(filename):
