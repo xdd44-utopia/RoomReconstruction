@@ -286,17 +286,6 @@ public static class MeshCalculator {
 
 		List<int> noHolePolygon = boundaries.Count > 1 ? splitHolePolygon(vertices, boundaries, localNormal) : boundaries[0];
 
-		if (debugging) {
-			for (int i=0;i<noHolePolygon.Count;i++) {
-				Debug.DrawLine(
-					vertices[noHolePolygon[i]] + new Vector3(-5, 0, 1),
-					vertices[noHolePolygon[(i + 1) % noHolePolygon.Count]] + new Vector3(-5, 0, 1),
-					Color.white,
-					5000
-				);
-			}
-		}
-
 		//Force duplicate reused vertices and offset
 		//Rotate the vertices to x-y plane
 		bool[] used = new bool[vertices.Length];

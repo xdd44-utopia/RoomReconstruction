@@ -11,7 +11,7 @@ from PIL import Image
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
-from utils.geometry import OBJ
+from utils.obj import OBJ
 
 def boundingOrtho(display, bbox, view):
 	glLoadIdentity()
