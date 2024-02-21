@@ -11,7 +11,9 @@ from PIL import Image
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
-from utils.obj import OBJ
+from utils.object import OBJ
+from utils.mesh import triangulizePolygon, extractConvexBoundary
+from utils.plot import *
 
 def boundingOrtho(display, bbox, view):
 	glLoadIdentity()
@@ -32,8 +34,6 @@ def boundingOrtho(display, bbox, view):
 		ml, mr = -mr, -ml
 	elif (view == "right"):
 		_, _, ml, mr, mt, mb, = bbox
-
-	print(ml, mr, mt, mb)
 
 	if ((mr - ml) / (mb - mt) < display[0] / display[1]):
 		w = display[0] / display[1] * (mb - mt)
@@ -83,6 +83,22 @@ def main():
 
 	model = OBJ("test.obj", swapyz=True)
 	BBox = model.BBox()
+
+	vertices, boundary = extractConvexBoundary(
+		np.asarray(model.vertices),
+		sampleRate = 0.1,
+		distLimit = 0.1
+	)
+
+	for i in range(len(boundary) - 1):
+		plotLine2D(vertices[boundary[i]], vertices[boundary[i + 1]])
+		plt.annotate(i, (vertices[boundary[i]][0], vertices[boundary[i]][1]))
+	plt.show()
+
+	triangles = triangulizePolygon(vertices, boundary)
+	plotMesh2D(vertices, triangles)
+	plt.show()
+	quit()
 
 	#gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
 

@@ -16,6 +16,32 @@ def vectorAngleDegrees(v1, v2):
 	return vectorAngleRadians * 180 / math.pi
 
 
+def angleLineAxis(v1, v2):
+	if (v2[0] - v1[0] == 0):
+		return math.pi / 2 if v2[1] > v1 else - math.pi / 2
+	else:
+		k = (v2[1] - v1[1]) / (v2[0] - v1[0])
+		angle = math.atan(k)
+		if (angle > 0 and v1[1] > v2[1]):
+			angle -= math.pi
+		if (angle < 0 and v1[1] < v2[1]):
+			angle += math.pi
+		return angle
+
+def angleTwoVectors(v1, v2):
+#This one returns value with +- sign
+	if (np.linalg.norm(v1) == 0 or np.linalg.norm(v2) == 0):
+		return 0
+	t = (v1[0] * v2[0] + v1[1] * v2[1]) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+	if t > 1:
+		t = 1
+	if t < -1:
+		t = -1
+	angle = math.acos(t)
+	if (v1[0] * v2[1] - v1[1] * v2[0] < 0):
+		angle = - angle
+	return angle
+
 def onSegment(p, q, r):
 	return (q[0] <= max(p[0], r[0]) and q[0] >= min(p[0], r[0]) and q[1] <= max(p[1], r[1]) and q[1] >= min(p[1], r[1]))
 

@@ -1,6 +1,8 @@
 import math
 import numpy as np
-from utils.vector import normalize, vectorAngleRadians, vectorAngleDegrees, isLineSegmentInsidePolygon
+import matplotlib.pyplot as plt
+from utils.vector import normalize, vectorAngleRadians, vectorAngleDegrees, isLineSegmentInsidePolygon, angleLineAxis, angleTwoVectors
+from utils.plot import *
 
 def clockwiseBoundary(vertices: np.ndarray, boundary: list, localNormal: list):
 
@@ -63,7 +65,7 @@ def splitMonotonePolygon(vertices: np.ndarray, boundary: list):
 						edges.append(min(boundary[vertexPointers[i]], boundary[vertexPointers[j]]))
 						edges.append(max(boundary[vertexPointers[i]], boundary[vertexPointers[j]]))
 						break
-
+						
 		return splitBoundaryByEdges(vertices, boundary, edges, [0, 0, 1])
 
 def splitBoundaryByEdges(vertices: np.ndarray, boundary: list, edges: list, localNormal: list):
@@ -71,6 +73,8 @@ def splitBoundaryByEdges(vertices: np.ndarray, boundary: list, edges: list, loca
 # edges[i * 2] and edges[i * 2 + 1] forms an edge to split
 
 		boundary = clockwiseBoundary(vertices, boundary, localNormal)
+		if (len(edges) == 0):
+			return [boundary]
 
 		adjList = [[] for i in range(len(vertices))]
 		# each connection consists of [edge, visitCount, clockwise]
@@ -193,7 +197,7 @@ def triangulizeMonotonePolygon(vertices: np.ndarray, boundary: list):
 							vertexPointers[prepre]['index'],
 							vertexPointers[i]['index']
 						])
-						vertexPointers[pre] = {'index': 0, 'prev': 0, 'next': 0, 'removed': True}
+						vertexPointers[pre] = {'index': -1, 'prev': -1, 'next': -1, 'removed': True}
 						vertexPointers[i] = {
 							'index': vertexPointers[i]['index'],
 							'prev': vertexPointers[prepre]['index'],
@@ -205,14 +209,14 @@ def triangulizeMonotonePolygon(vertices: np.ndarray, boundary: list):
 					
 					if (i == len(vertexPointers) - 1):
 						pre = next((t for t in range(len(vertexPointers)) if vertexPointers[t]['index'] == vertexPointers[i]['next']))
-						prepre = pre == leftMost[1] if leftMost[0] else next((t for t in range(len(vertexPointers)) if vertexPointers[t]['index'] == vertexPointers[pre]['prev']))
+						prepre = leftMost[1] if pre == leftMost[0] else next((t for t in range(len(vertexPointers)) if vertexPointers[t]['index'] == vertexPointers[pre]['prev']))
 						if (isLineSegmentInsidePolygon(vertices, boundary, vertices[vertexPointers[i]['index']], vertices[vertexPointers[prepre]['index']])):
 							triangles.append([
 								vertexPointers[pre]['index'],
 								vertexPointers[prepre]['index'],
 								vertexPointers[i]['index']
 							])
-							vertexPointers[pre] = {'index': 0, 'prev': 0, 'next': 0, 'removed': True}
+							vertexPointers[pre] = {'index': -1, 'prev': -1, 'next': -1, 'removed': True}
 							vertexPointers[i] = {
 								'index': vertexPointers[i]['index'],
 								'prev': vertexPointers[i]['prev'],
@@ -223,7 +227,7 @@ def triangulizeMonotonePolygon(vertices: np.ndarray, boundary: list):
 							break
 							
 			if (not found):
-				Debug.Log("Failed on ", leftMost, len(vertexPointers))
+				print("Failed on ", leftMost, len(vertexPointers))
 				
 		#The remaining vertices form the last triangle
 		remainingVertices = []
@@ -240,3 +244,47 @@ def triangulizePolygon(vertices: np.ndarray, boundary: list):
 	for polygon in monotonePolygons:
 		triangles.extend(triangulizeMonotonePolygon(vertices, polygon))
 	return triangles
+
+
+
+def extractConvexBoundary(vertices: np.ndarray, sampleRate = 0.1, distLimit = 100):
+
+	samples = np.random.choice(vertices.shape[0], int(vertices.shape[0] * sampleRate), replace = False)
+	verticesSampled = np.asarray([[v[0], v[1], 0] for v in vertices[samples]])
+
+	vertexPointers = []
+	for i in range(len(verticesSampled)):
+		vertexPointers.append(i)
+		
+	vertexPointers.sort(key = lambda v: verticesSampled[v][0])
+	result = [vertexPointers[0]]
+	pre = vertexPointers.pop(0)
+
+	vertexPointers.sort(key = lambda v: angleLineAxis(verticesSampled[pre], verticesSampled[v]))
+	result.append(vertexPointers[0])
+	cur = vertexPointers.pop(0)
+	vertexPointers.append(result[0])
+
+	ite = 0
+	found = False
+
+	while (cur != result[0]):
+		found = False
+		vertexPointers.sort(key = lambda v: angleTwoVectors(verticesSampled[cur] - verticesSampled[pre], verticesSampled[v] - verticesSampled[cur]))
+		
+		for i in range(len(vertexPointers)):
+			dist = np.linalg.norm(verticesSampled[cur] - verticesSampled[vertexPointers[i]])
+			angle = angleTwoVectors(verticesSampled[cur] - verticesSampled[pre], verticesSampled[vertexPointers[i]] - verticesSampled[cur])
+			if (dist < distLimit and angle > - math.pi / 2):
+				pre = cur
+				cur = vertexPointers.pop(i)
+				result.append(cur)
+				found = True
+				break
+				
+		ite += 1
+		if (ite > 1000 or not found):
+			break
+
+	del result[0]
+	return verticesSampled, result

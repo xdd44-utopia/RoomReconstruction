@@ -6,8 +6,8 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils.config import distLimit
 from utils.fit_plane import extract_planes
+from utils.mesh import extractConvexBoundary
 
 def MTL(filename):
 	contents = {}
@@ -137,8 +137,8 @@ class OBJ:
 		norm = plane_eqs[0]
 		i = 0
 		while (norm[2] > 0.01 and i < len(plane_eqs)):
-			i += 1
 			norm = plane_eqs[i]
+			i += 1
 		theta = math.atan(norm[1] / norm[0])
 
 		print("Rotating...")
@@ -205,120 +205,3 @@ class NakedOBJ:
 				# OBJ format uses 1-based indexing
 				face_indices = [str(v) for v in face]
 				file.write(f'f {" ".join(face_indices)}\n')
-
-class V:
-	def __init__(self, v):
-		self.x = v[0]
-		self.y = v[1]
-
-	def magnitude(self):
-		return math.sqrt(self.x ** 2 + self.y ** 2)
-	
-	def distance(self, other):
-		v = V((other.x - self.x, other.y - self.y))
-		return v.magnitude()
-
-	def toString(self):
-		return f"({self.x}, {self.y})"
-
-def angleLineAxis(v1, v2):
-	if (v2.x - v1.x == 0):
-		return math.pi / 2 if v2.y > v1 else - math.pi / 2
-	else:
-		k = (v2.y - v1.y) / (v2.x - v1.x)
-		angle = math.atan(k)
-		if (angle > 0 and v1.y > v2.y):
-			angle -= math.pi
-		if (angle < 0 and v1.y < v2.y):
-			angle += math.pi
-		return angle
-
-def angleTwoVectors(s1, t1, s2, t2):
-	v1 = V((t1.x - s1.x, t1.y - s1.y))
-	v2 = V((t2.x - s2.x, t2.y - s2.y))
-	if (v1.magnitude() == 0 or v2.magnitude() == 0):
-		return 0
-	angle = math.acos((v1.x * v2.x + v1.y * v2.y) / (v1.magnitude() * v2.magnitude()))
-	if (v1.x * v2.y - v1.y * v2.x < 0):
-		angle = - angle
-	return angle
-
-def extractBoundary(model):
-	
-	vertices = [V(v) for v in model.vertices]
-
-	vertices.sort(key = lambda v: v.x)
-
-	vertices.sort(key = lambda v: v.x)
-	result = [vertices[0]]
-	vertices.pop(0)
-	vertices.sort(key = lambda v: angleLineAxis(result[0], v))
-	result.append(vertices[0])
-	cur = vertices.pop(0)
-	vertices.append(result[0])
-
-	# for ite in tqdm(range(len(vertices))):
-	while (cur != result[0]):
-		vertices.sort(key = lambda v: angleTwoVectors(result[-2], result[-1], result[-1], v))
-		for i in range(len(vertices)):
-			if (result[-1].distance(vertices[i]) < distLimit and angleTwoVectors(result[-2], result[-1], result[-1], vertices[i]) > - math.pi / 2):
-				cur = vertices.pop(i)
-				result.append(cur)
-				break
-		if (cur == result[0]):
-			break
-
-	return result
-
-if __name__ == "__main__":
-
-	model = NakedOBJ("testOrient.obj")
-	
-	sample_points = np.random.choice(len(model.vertices), int(len(model.vertices) / 500)).tolist()
-
-	x = np.array([v[0] for v in np.array(model.vertices)[sample_points]])
-	y = np.array([v[1] for v in np.array(model.vertices)[sample_points]])
-	plt.figure(figsize=(10,10))
-	plt.scatter(x, y, marker='o')
-
-	sample_points = np.random.choice(len(model.vertices), int(len(model.vertices) / 10)).tolist()
-	plane_eqs, plane_points, remaining_points = extract_planes(np.array(model.vertices)[sample_points])
-	print("Plane extracted")
-
-	norm = plane_eqs[0]
-	i = 0
-	while (norm[2] > 0.01 and i < len(plane_eqs)):
-		i += 1
-		norm = plane_eqs[i]
-	theta = math.atan(norm[1] / norm[0])
-	model.rotate(-theta)
-	print("Model rotated")
-
-	sample_points = np.random.choice(len(model.vertices), int(len(model.vertices) / 500)).tolist()
-
-	x = np.array([v[0] for v in np.array(model.vertices)[sample_points]])
-	y = np.array([v[1] for v in np.array(model.vertices)[sample_points]])
-	plt.scatter(x, y, marker='^')
-
-	plt.show()
-
-	quit()
-
-	boundary = extractBoundary(model)
-
-	resultOBJ = NakedOBJ()
-	resultFaces = []
-	for i in range(1, len(boundary) - 1):
-		resultFaces.append([len(boundary) - 1, i - 1, i])
-	
-	resultOBJ.vertices = [[v.x, v.y, 0] for v in boundary]
-	resultOBJ.faces = resultFaces
-	resultOBJ.export("testResult.obj")
-
-	x = np.array([v.x for v in boundary])
-	y = np.array([v.y for v in boundary])
-	plt.figure(figsize=(10,10))
-	plt.scatter(x, y)
-	plt.savefig('100.jpg')
-		
-	print(len(boundary))
