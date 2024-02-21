@@ -4,13 +4,13 @@ import matplotlib.pyplot as plt
 from utils.vector import normalize, vectorAngleRadians, vectorAngleDegrees, isLineSegmentInsidePolygon, angleLineAxis, angleTwoVectors
 from utils.plot import *
 
-def clockwiseBoundary(vertices: np.ndarray, boundary: list, localNormal: list):
+def clockwiseBoundary(vertices: np.ndarray, boundary: list):
 
 		angleAcc = 0
 		for i in range(len(boundary)):
 			va = normalize(vertices[boundary[i]] - vertices[boundary[(i + len(boundary) - 1) % len(boundary)]])
 			vb = normalize(vertices[boundary[(i + 1) % len(boundary)]] - vertices[boundary[i]])
-			isConvex = vectorAngleRadians(normalize(np.cross(va, vb)), localNormal) < math.pi / 4
+			isConvex = vectorAngleRadians(normalize(np.cross(va, vb)), [0, 0, 1]) < math.pi / 4
 			angleAcc += (math.pi - vectorAngleRadians(va, vb)) * (1 if isConvex else -1)
 		
 		if (angleAcc < 0):
@@ -28,7 +28,7 @@ def simplifyBoundary(vertices: np.ndarray, orignalBoundary: list):
 		for i in range(len(boundary)):
 			prev = (i + len(boundary) - 1) % len(boundary)
 			next = (i + 1) % len(boundary)
-			if (np.linalg.norm(np.cross(vertices[boundary[next]] - vertices[boundary[i]], vertices[boundary[i]] - vertices[boundary[prev]])) < 0.001):
+			if (np.linalg.norm(np.cross(vertices[boundary[next]] - vertices[boundary[i]], vertices[boundary[i]] - vertices[boundary[prev]])) < 0.05):
 				del boundary[i]
 				break
 		if (len(boundary) == prevCount):
@@ -65,14 +65,17 @@ def splitMonotonePolygon(vertices: np.ndarray, boundary: list):
 						edges.append(min(boundary[vertexPointers[i]], boundary[vertexPointers[j]]))
 						edges.append(max(boundary[vertexPointers[i]], boundary[vertexPointers[j]]))
 						break
+		
+		print(edges)
+		for i in range(len(edges) // 2):
+			plotLine2D(vertices[edges[i * 2]], vertices[edges[i * 2 + 1]], color = "red")
 						
-		return splitBoundaryByEdges(vertices, boundary, edges, [0, 0, 1])
+		return splitBoundaryByEdges(vertices, boundary, edges)
 
-def splitBoundaryByEdges(vertices: np.ndarray, boundary: list, edges: list, localNormal: list):
+def splitBoundaryByEdges(vertices: np.ndarray, boundary: list, edges: list):
 # this only works for clockwised boundary
 # edges[i * 2] and edges[i * 2 + 1] forms an edge to split
 
-		boundary = clockwiseBoundary(vertices, boundary, localNormal)
 		if (len(edges) == 0):
 			return [boundary]
 
@@ -136,7 +139,7 @@ def splitBoundaryByEdges(vertices: np.ndarray, boundary: list, edges: list, loca
 					nex = adjList[cur[1]][i][0]
 					if (nex != cur[0]):
 						v2 = vertices[nex] - vertices[cur[1]]
-						angle = vectorAngleRadians(v1, v2) * (1 if vectorAngleRadians(normalize(np.cross(v1, v2)), localNormal) < math.pi / 4 else -1)
+						angle = vectorAngleRadians(v1, v2) * (1 if vectorAngleRadians(normalize(np.cross(v1, v2)), [0, 0, 1]) < math.pi / 4 else -1)
 						if (angle > maxEdge[0]):
 							maxEdge = [angle, nex]
 				cur[0] = cur[1]
@@ -150,7 +153,7 @@ def triangulizeMonotonePolygon(vertices: np.ndarray, boundary: list):
 # returns a list of triangle indices form a triangle
 
 		if (len(boundary) == 3):
-			return boundary
+			return [boundary]
 
 		#Algorithm:
 		#Sort vertices by x
@@ -239,13 +242,18 @@ def triangulizeMonotonePolygon(vertices: np.ndarray, boundary: list):
 		return triangles
 
 def triangulizePolygon(vertices: np.ndarray, boundary: list):
-	monotonePolygons = splitMonotonePolygon(vertices, boundary)
+
+	boundary = clockwiseBoundary(vertices, boundary)
+	plotBoundary2D(vertices, boundary)
+
+	simplifiedBoundary = simplifyBoundary(vertices, boundary)
+	plotBoundary2D(vertices, boundary, marker='^')
+
+	monotonePolygons = splitMonotonePolygon(vertices, simplifiedBoundary)
 	triangles = []
 	for polygon in monotonePolygons:
 		triangles.extend(triangulizeMonotonePolygon(vertices, polygon))
 	return triangles
-
-
 
 def extractConvexBoundary(vertices: np.ndarray, sampleRate = 0.1, distLimit = 100):
 

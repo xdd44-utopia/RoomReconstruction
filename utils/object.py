@@ -122,6 +122,11 @@ class OBJ:
 			self.vertices[i] = v[0] * math.cos(angle) - v[1] * math.sin(angle), v[0] * math.sin(angle) + v[1] * math.cos(angle), v[2]
 			vn = self.normals[i]
 			self.normals[i] = vn[0] * math.cos(angle) - vn[1] * math.sin(angle), vn[0] * math.sin(angle) + vn[1] * math.cos(angle), vn[2]
+
+	def scale(self, s):
+		for i in range(len(self.vertices)):
+			v = self.vertices[i]
+			self.vertices[i] = v[0] * s, v[1] * s, v[2] * s
 	
 	def center(self):
 		bbox = self.BBox()
@@ -145,6 +150,7 @@ class OBJ:
 		self.rotate(-theta)
 		print("Centering...")
 		self.center()
+		self.scale(100)
 
 	def BBox(self):
 		left = min(self.vertices, key = lambda x: x[0])

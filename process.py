@@ -76,6 +76,8 @@ def captureTexture(display, model, view):
 
 def main():
 
+	np.random.seed(0)
+
 	pygame.init()
 
 	display = (1280, 720)
@@ -87,13 +89,12 @@ def main():
 	vertices, boundary = extractConvexBoundary(
 		np.asarray(model.vertices),
 		sampleRate = 0.1,
-		distLimit = 0.1
+		distLimit = 10
 	)
 
 	for i in range(len(boundary) - 1):
 		plotLine2D(vertices[boundary[i]], vertices[boundary[i + 1]])
 		plt.annotate(i, (vertices[boundary[i]][0], vertices[boundary[i]][1]))
-	plt.show()
 
 	triangles = triangulizePolygon(vertices, boundary)
 	plotMesh2D(vertices, triangles)
