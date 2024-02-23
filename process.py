@@ -15,6 +15,8 @@ from utils.object import OBJ
 from utils.mesh import triangulizePolygon, extractConvexBoundary
 from utils.plot import *
 
+from scipy.spatial import Delaunay
+
 def boundingOrtho(display, bbox, view):
 	glLoadIdentity()
 
@@ -85,6 +87,16 @@ def main():
 
 	model = OBJ("test.obj", swapyz=True)
 	BBox = model.BBox()
+
+	samples = np.random.choice(len(model.vertices), len(model.vertices) // 100, replace = False)
+	vertices = np.asarray([[v[0], v[1]] for v in np.array(model.vertices)[samples]])
+	print(vertices)
+	triangles = Delaunay(vertices)
+	plt.triplot(vertices[:,0], vertices[:,1], triangles.simplices)
+	plt.plot(vertices[:,0], vertices[:,1], 'o')
+	plt.show()
+
+	quit()
 
 	vertices, boundary = extractConvexBoundary(
 		np.asarray(model.vertices),
