@@ -9,10 +9,10 @@ import numpy as np
 from utils.fit_plane import extract_planes
 from utils.mesh import extractConvexBoundary
 
-def MTL(filename):
+def MTL(foldername, filename):
 	contents = {}
 	mtl = None
-	for line in open(filename, "r"):
+	for line in open(foldername + "/" + filename, "r"):
 		if line.startswith('#'): continue
 		values = line.split()
 		if not values: continue
@@ -23,7 +23,7 @@ def MTL(filename):
 		elif values[0] == 'map_Kd':
 			# load the texture referred to by this declaration
 			mtl[values[0]] = values[1]
-			surf = pygame.image.load(mtl['map_Kd'])
+			surf = pygame.image.load(foldername + "/" + mtl['map_Kd'])
 			image = pygame.image.tostring(surf, 'RGBA', 1)
 			ix, iy = surf.get_rect().size
 			texid = mtl['texture_Kd'] = glGenTextures(1)
@@ -39,7 +39,7 @@ def MTL(filename):
 	return contents
 
 class OBJ:
-	def __init__(self, filename, swapyz=False):
+	def __init__(self, foldername, filename, swapyz=False):
 		"""Loads a Wavefront OBJ file. """
 		self.vertices = []
 		self.normals = []
@@ -48,7 +48,7 @@ class OBJ:
 
 		material = None
 		print("Loading Geometry...")
-		for line in tqdm(open(filename, "r")):
+		for line in tqdm(open(foldername + "/" + filename, "r")):
 			if line.startswith('#'): continue
 			values = line.split()
 			if not values: continue
@@ -67,7 +67,7 @@ class OBJ:
 			elif values[0] in ('usemtl', 'usemat'):
 				material = values[1]
 			elif values[0] == 'mtllib':
-				self.mtl = MTL(values[1])
+				self.mtl = MTL(foldername, values[1])
 			elif values[0] == 'f':
 				face = []
 				texcoords = []
@@ -134,10 +134,11 @@ class OBJ:
 			v = self.vertices[i]
 			self.vertices[i] = v[0] - (bbox[1] - bbox[0]) / 2, v[1] - (bbox[3] - bbox[2]) / 2, v[2] - bbox[4]
 	
-	def orient(self):
+	def orient(self, debug = False):
 		vertices = [list(v) for v in self.vertices]
 		sample_points = np.random.choice(len(vertices), int(len(vertices) / 10)).tolist()
-		plane_eqs, plane_points, remaining_points = extract_planes(np.array(vertices)[sample_points])
+		sample_vertices = np.array(vertices)[sample_points]
+		plane_eqs, plane_points, remaining_points = extract_planes(sample_vertices)
 
 		norm = plane_eqs[0]
 		i = 0
@@ -145,6 +146,32 @@ class OBJ:
 			norm = plane_eqs[i]
 			i += 1
 		theta = math.atan(norm[1] / norm[0])
+
+		if (debug):
+			fig = plt.figure()
+			ax = fig.add_subplot(projection='3d')
+			
+			# ax.scatter(
+			# 	np.asarray(vertices)[:,0],
+			# 	np.asarray(vertices)[:,1],
+			# 	np.asarray(vertices)[:,2],
+			# 	color = (0, 0, 0.5, 0.5),
+			# 	marker = '.'
+			# )
+
+			markers = ['o', 'v', '^', '<', '>', '+']
+			for i, points in enumerate(plane_points):
+				ax.scatter(
+					plane_points[i][:,0],
+					plane_points[i][:,1],
+					plane_points[i][:,2],
+					color = (0, 0, 0, 0.5),
+					marker = markers[i % 6]
+				)
+			ax.set_xlabel('X Label')
+			ax.set_ylabel('Y Label')
+			ax.set_zlabel('Z Label')
+			plt.show()
 
 		print("Rotating...")
 		self.rotate(-theta)
@@ -160,6 +187,9 @@ class OBJ:
 		top = min(self.vertices, key = lambda x: x[2])
 		bottom = max(self.vertices, key = lambda x: x[2])
 		return left[0], right[0], front[1], back[1], top[2], bottom[2]
+
+	def height(self):
+		return max(self.vertices, key = lambda x: x[2])[2] - min(self.vertices, key = lambda x: x[2])[2]
 
 	def export(self, filename):
 		with open(filename, 'w') as file:
@@ -203,11 +233,17 @@ class NakedOBJ:
 				v[2]
 			]
 
+	def scale(self, s):
+		for i in range(len(self.vertices)):
+			v = self.vertices[i]
+			self.vertices[i] = v[0] * s, v[1] * s, v[2] * s
+
 	def export(self, filename):
+		self.scale(0.01)
 		with open(filename, 'w') as file:
 			for v in self.vertices:
-				file.write(f'v {v[0]} {v[1]} {v[2]}\n')
+				file.write(f'v {v[0]} {v[2]} {v[1]}\n')
 			for face in self.faces:
 				# OBJ format uses 1-based indexing
-				face_indices = [str(v) for v in face]
+				face_indices = [str(v + 1) for v in face]
 				file.write(f'f {" ".join(face_indices)}\n')

@@ -11,11 +11,9 @@ from PIL import Image
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
-from utils.object import OBJ
-from utils.mesh import triangulizePolygon, extractConvexBoundary
+from utils.object import OBJ, NakedOBJ
+from utils.mesh import triangulizePolygon, delaunayTriangulizePolygon, extractConvexBoundary, extrudeBoundary
 from utils.plot import *
-
-from scipy.spatial import Delaunay
 
 def boundingOrtho(display, bbox, view):
 	glLoadIdentity()
@@ -85,32 +83,26 @@ def main():
 	display = (1280, 720)
 	pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
 
-	model = OBJ("test.obj", swapyz=True)
+	model = OBJ("Scan", "test1.obj", swapyz=True)
 	BBox = model.BBox()
 
-	samples = np.random.choice(len(model.vertices), len(model.vertices) // 100, replace = False)
-	vertices = np.asarray([[v[0], v[1]] for v in np.array(model.vertices)[samples]])
-	print(vertices)
-	triangles = Delaunay(vertices)
-	plt.triplot(vertices[:,0], vertices[:,1], triangles.simplices)
-	plt.plot(vertices[:,0], vertices[:,1], 'o')
-	plt.show()
-
-	quit()
-
+	print("Extract boundary...")
 	vertices, boundary = extractConvexBoundary(
 		np.asarray(model.vertices),
 		sampleRate = 0.1,
-		distLimit = 10
+		distLimit = 20
 	)
 
-	for i in range(len(boundary) - 1):
-		plotLine2D(vertices[boundary[i]], vertices[boundary[i + 1]])
-		plt.annotate(i, (vertices[boundary[i]][0], vertices[boundary[i]][1]))
+	print("Construct bottom faces...")
+	triangles = delaunayTriangulizePolygon(vertices, boundary)
+	debugResult = NakedOBJ(vertices = vertices, faces = triangles)
+	debugResult.export("bottom.obj")
+	
+	print("Extrude room...")
+	vertices, triangles = extrudeBoundary(vertices, boundary, triangles, model.height())
+	result = NakedOBJ(vertices = vertices, faces = triangles)
+	result.export("result.obj")
 
-	triangles = triangulizePolygon(vertices, boundary)
-	plotMesh2D(vertices, triangles)
-	plt.show()
 	quit()
 
 	#gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)

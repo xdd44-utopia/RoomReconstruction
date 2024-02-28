@@ -4,22 +4,31 @@ import matplotlib.pyplot as plt
 from utils.vector import normalize, vectorAngleRadians, vectorAngleDegrees, isLineSegmentInsidePolygon, angleLineAxis, angleTwoVectors
 from utils.plot import *
 
-def clockwiseBoundary(vertices: np.ndarray, boundary: list):
+from scipy.spatial import Delaunay
 
-		angleAcc = 0
-		for i in range(len(boundary)):
-			va = normalize(vertices[boundary[i]] - vertices[boundary[(i + len(boundary) - 1) % len(boundary)]])
-			vb = normalize(vertices[boundary[(i + 1) % len(boundary)]] - vertices[boundary[i]])
-			isConvex = vectorAngleRadians(normalize(np.cross(va, vb)), [0, 0, 1]) < math.pi / 4
-			angleAcc += (math.pi - vectorAngleRadians(va, vb)) * (1 if isConvex else -1)
-		
-		if (angleAcc < 0):
-			newBoundary = []
-			for i in range(len(boundary) - 1, -1, -1):
-				newBoundary.append(boundary[i])
-			return newBoundary
-		else:
-			return boundary
+def flipTriangles(triangles: list):
+	newTriangles = []
+	for triangle in triangles:
+		newTriangles.append([triangle[0], triangle[2], triangle[1]])
+	return newTriangles
+
+def clockwiseBoundary(vertices: np.ndarray, boundary: list):
+# clockwise when looking toward (0, 0, 1)
+
+	angleAcc = 0
+	for i in range(len(boundary)):
+		va = normalize(vertices[boundary[i]] - vertices[boundary[(i + len(boundary) - 1) % len(boundary)]])
+		vb = normalize(vertices[boundary[(i + 1) % len(boundary)]] - vertices[boundary[i]])
+		isConvex = vectorAngleRadians(normalize(np.cross(va, vb)), [0, 0, 1]) < math.pi / 4
+		angleAcc += (math.pi - vectorAngleRadians(va, vb)) * (1 if isConvex else -1)
+	
+	if (angleAcc < 0):
+		newBoundary = []
+		for i in range(len(boundary) - 1, -1, -1):
+			newBoundary.append(boundary[i])
+		return newBoundary
+	else:
+		return boundary
 
 def simplifyBoundary(vertices: np.ndarray, orignalBoundary: list):
 	boundary = orignalBoundary[:]
@@ -255,7 +264,24 @@ def triangulizePolygon(vertices: np.ndarray, boundary: list):
 		triangles.extend(triangulizeMonotonePolygon(vertices, polygon))
 	return triangles
 
-def extractConvexBoundary(vertices: np.ndarray, sampleRate = 0.1, distLimit = 100):
+def delaunayTriangulizePolygon(vertices: np.ndarray, boundary: list):
+
+	# samples = np.random.choice((vertices).shape[0], vertices.shape[0] // 100, replace = False)
+	# sample_vertices = np.asarray([[v[0], v[1]] for v in vertices[samples]])
+	delaunayTriangles = Delaunay(np.asarray([[v[0], v[1]] for v in vertices]))
+	
+	triangles = []
+	for triangle in delaunayTriangles.simplices:
+		if (
+			isLineSegmentInsidePolygon(vertices, boundary, vertices[triangle[0]], vertices[triangle[1]]) and
+			isLineSegmentInsidePolygon(vertices, boundary, vertices[triangle[0]], vertices[triangle[2]]) and
+			isLineSegmentInsidePolygon(vertices, boundary, vertices[triangle[1]], vertices[triangle[2]])
+		):
+			triangles.append(triangle)
+	
+	return triangles
+
+def extractConvexBoundary(vertices: np.ndarray, sampleRate = 1, distLimit = 100):
 
 	samples = np.random.choice(vertices.shape[0], int(vertices.shape[0] * sampleRate), replace = False)
 	verticesSampled = np.asarray([[v[0], v[1], 0] for v in vertices[samples]])
@@ -296,3 +322,30 @@ def extractConvexBoundary(vertices: np.ndarray, sampleRate = 0.1, distLimit = 10
 
 	del result[0]
 	return verticesSampled, result
+
+def extrudeBoundary(vertices: np.ndarray, boundary: list, triangles: list, height: float):
+# Assume extruding toward z positive for a clockwise boundary
+# Return new vertices and complete triangles
+
+	count = vertices.shape[0]
+	topTriangles = flipTriangles(triangles)
+	for i in range(len(topTriangles)):
+		for j in range(3):
+			topTriangles[i][j] += count
+	triangles.extend(topTriangles)
+
+	verticesList = []
+	for i in range(count):
+		verticesList.append([vertices[i][0], vertices[i][1], 0])
+	for i in range(count):
+		verticesList.append([vertices[i][0], vertices[i][1], height])
+
+	for i in range(len(boundary)):
+		bottom1 = boundary[i]
+		bottom2 = boundary[(i + 1) % len(boundary)]
+		top1 = bottom1 + count
+		top2 = bottom2 + count
+		triangles.append([bottom1, bottom2, top1])
+		triangles.append([bottom2, top1, top2])
+	
+	return np.asarray(verticesList), triangles
