@@ -1,40 +1,42 @@
 import numpy as np
-from utils.mesh import *
-from utils.plot import plotMesh2D, plotLine2D
-from utils.object import OBJ
+from skimage.feature import local_binary_pattern
+from skimage import io, measure, img_as_ubyte
+from skimage.filters import threshold_otsu
 import matplotlib.pyplot as plt
 
-# vertices = np.asarray([
-#     [-1.194, -7.084, 0.0],
-#     [-6.131, -0.213, 0.0],
-#     [-7.482, 4.957, 0.0],
-#     [-3.196, 7.170, 0.0],
-#     [-1.333, 3.164, 0.0],
-#     [2.743, 6.145, 0.0],
-#     [5.141, 1.976, 0.0],
-#     [0.903, 2.139, 0.0],
-#     [6.562, -1.937, 0.0],
-#     [10.545, 7.286, 0.0],
-#     [13.619, 3.024, 0.0],
-#     [5.095, -6.478, 0.0],
-#     [1.694, -4.732, 0.0],
-#     [-2.498, -0.376, 0.0]
-# ])
-# boundary = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+# Load an image
+image = img_as_ubyte(io.imread('Test/bottom.png', as_gray=True))
 
-# result = triangulizePolygon(vertices, boundary)
-# plotMesh2D(vertices, result)
+# Compute LBP
+radius = 3
+n_points = 16 * radius
+lbp_image = local_binary_pattern(image, n_points, radius, method='uniform')
 
-# boundary = extractConvexBoundary(vertices)
+# Apply thresholding on LBP image for a simple segmentation
+# This step might be replaced by clustering in more complex scenarios
+thresh = threshold_otsu(lbp_image)
+binary_image = lbp_image > thresh
 
-model = OBJ("test.obj", swapyz=True)
-boundary = model.getBoundary()
+# Label connected components
+label_image = measure.label(binary_image)
+regions = measure.regionprops(label_image)
 
-for i in range(len(boundary) - 1):
-    plotLine2D(vertices[i], vertices[i + 1])
+# Find the largest region by area
+largest_region = max(regions, key=lambda r: r.area)
 
-# result = triangulizePolygon(model.vertices, boundary)
-# print(result)
-# plotMesh2D(vertices, result)
+# Create a mask for the largest region
+largest_region_mask = label_image == largest_region.label
+
+# Display the result
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.title('Original Image')
+plt.imshow(image, cmap='gray')
+plt.axis('off')
+
+plt.subplot(1, 2, 2)
+plt.title('Largest Texture Segment')
+plt.imshow(largest_region_mask, cmap='gray')
+plt.axis('off')
 
 plt.show()

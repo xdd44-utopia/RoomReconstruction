@@ -202,10 +202,13 @@ class OBJ:
 				file.write(f'f {" ".join(face_indices)}\n')
 
 class NakedOBJ:
-	def __init__(self, filename = "", vertices = [], faces = []):
+	def __init__(self, filename = "", vertices = [], faces = [], texcoords = [], texidc = [], bottomTriangleCount = 0):
 		"""Loads a Wavefront OBJ file. """
 		self.vertices = vertices
 		self.faces = faces
+		self.texcoords = texcoords
+		self.texidc = texidc
+		self.triCount = bottomTriangleCount
 	
 		if (len(filename) > 0):
 			print("Loading Geometry...")
@@ -233,17 +236,32 @@ class NakedOBJ:
 				v[2]
 			]
 
-	def scale(self, s):
-		for i in range(len(self.vertices)):
-			v = self.vertices[i]
-			self.vertices[i] = v[0] * s, v[1] * s, v[2] * s
-
-	def export(self, filename):
-		self.scale(0.01)
-		with open(filename, 'w') as file:
+	def export(self, foldername, filename):
+		with open(foldername + "/" + filename, 'w') as file:
+			file.write('mtllib result.mtl\n')
+			file.write('o result\n')
 			for v in self.vertices:
 				file.write(f'v {v[0]} {v[2]} {v[1]}\n')
-			for face in self.faces:
+			for v in self.texcoords:
+				file.write(f'vt {v[0]} {v[1]}\n')
+			file.write('s 0\n')
+			file.write('usemtl floor\n')
+			for i in range(self.triCount):
 				# OBJ format uses 1-based indexing
-				face_indices = [str(v + 1) for v in face]
-				file.write(f'f {" ".join(face_indices)}\n')
+				fs = [str(v + 1) for v in self.faces[i]]
+				ts = [str(v + 1) for v in self.texidc[i]]
+				file.write(f'f {fs[0]}/{ts[0]} {fs[1]}/{ts[1]} {fs[2]}/{ts[2]}\n')
+			file.write('s 1\n')
+			file.write('usemtl ceiling\n')
+			for i in range(self.triCount, self.triCount * 2):
+				# OBJ format uses 1-based indexing
+				fs = [str(v + 1) for v in self.faces[i]]
+				ts = [str(v + 1) for v in self.texidc[i]]
+				file.write(f'f {fs[0]}/{ts[0]} {fs[1]}/{ts[1]} {fs[2]}/{ts[2]}\n')
+			file.write('s 2\n')
+			file.write('usemtl wall\n')
+			for i in range(self.triCount * 2, len(self.faces)):
+				# OBJ format uses 1-based indexing
+				fs = [str(v + 1) for v in self.faces[i]]
+				ts = [str(v + 1) for v in self.texidc[i]]
+				file.write(f'f {fs[0]}/{ts[0]} {fs[1]}/{ts[1]} {fs[2]}/{ts[2]}\n')

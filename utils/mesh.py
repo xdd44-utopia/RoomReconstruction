@@ -327,25 +327,45 @@ def extrudeBoundary(vertices: np.ndarray, boundary: list, triangles: list, heigh
 # Assume extruding toward z positive for a clockwise boundary
 # Return new vertices and complete triangles
 
+	textureScale = height / 720 * 128
+	verticesList = []
+	texcoordsList = []
+	texidxList = []
+
 	count = vertices.shape[0]
 	topTriangles = flipTriangles(triangles)
-	for i in range(len(topTriangles)):
-		for j in range(3):
-			topTriangles[i][j] += count
-	triangles.extend(topTriangles)
 
-	verticesList = []
+	for triangle in triangles:
+		texidxList.append([triangle[0], triangle[2], triangle[1]])
+	for triangle in triangles:
+		texidxList.append([triangle[0], triangle[1], triangle[2]])
+
+	for i in range(len(triangles)):
+		for j in range(3):
+			triangles[i][j] += count
+	topTriangles.extend(triangles)
+	triangles = topTriangles
+
 	for i in range(count):
 		verticesList.append([vertices[i][0], vertices[i][1], 0])
+		texcoordsList.append([vertices[i][0] / textureScale, vertices[i][1] / textureScale])
 	for i in range(count):
 		verticesList.append([vertices[i][0], vertices[i][1], height])
 
 	for i in range(len(boundary)):
+		texcoordsCount = len(texcoordsList)
 		bottom1 = boundary[i]
 		bottom2 = boundary[(i + 1) % len(boundary)]
 		top1 = bottom1 + count
 		top2 = bottom2 + count
+		xz = (verticesList[bottom1][1] == verticesList[bottom2][1]) or (abs((verticesList[bottom2][0] - verticesList[bottom1][0]) / (verticesList[bottom2][1] - verticesList[bottom1][1])) >= 1)
+		texcoordsList.append([verticesList[bottom1][0 if xz else 1] / textureScale, verticesList[bottom1][2] / textureScale])
+		texcoordsList.append([verticesList[bottom2][0 if xz else 1] / textureScale, verticesList[bottom2][2] / textureScale])
+		texcoordsList.append([verticesList[top1][0 if xz else 1] / textureScale, verticesList[top1][2] / textureScale])
+		texcoordsList.append([verticesList[top2][0 if xz else 1] / textureScale, verticesList[top2][2] / textureScale])
 		triangles.append([bottom1, bottom2, top1])
-		triangles.append([bottom2, top1, top2])
+		triangles.append([top1, bottom2, top2])
+		texidxList.append([texcoordsCount, texcoordsCount + 1, texcoordsCount + 2])
+		texidxList.append([texcoordsCount + 2, texcoordsCount + 1, texcoordsCount + 3])
 	
-	return np.asarray(verticesList), triangles
+	return np.asarray(verticesList), triangles, texcoordsList, texidxList

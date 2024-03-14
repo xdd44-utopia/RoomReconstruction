@@ -1,6 +1,7 @@
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
+import sys
 import pygame
 from pygame.locals import *
 from pygame.constants import *
@@ -39,30 +40,30 @@ def boundingOrtho(display, bbox, view):
 		w = display[0] / display[1] * (mb - mt)
 		padding = (w - (mr - ml)) / 2
 		# glOrtho(ml - padding, mr + padding, mt, mb, 0.1, 50)
-		glOrtho(ml - padding, mr + padding, mt, mb, 0.1, 50)
+		glOrtho(ml - padding, mr + padding, mt, mb, 0.1, 1000)
 	else:
 		h = display[1] / display[0] * (mr - ml)
 		padding = (h - (mb - mt)) / 2
-		glOrtho(ml, mr, mt - padding, mb + padding, 0.1, 50)
+		glOrtho(ml, mr, mt - padding, mb + padding, 0.1, 1000)
 	
 	if (view == "top"):
-		glTranslatef(0, 0, -25)
+		glTranslatef(0, 0, -500)
 	elif (view == "bottom"):
-		glTranslatef(0, 0, -25)
+		glTranslatef(0, 0, -500)
 		glRotatef(180, 1, 0, 0)
 	elif (view == "front"):
 		glRotatef(90, 1, 0, 0)
 		glRotatef(180, 0, 1, 0)
-		glTranslatef(0, -25, 0)
+		glTranslatef(0, -500, 0)
 	elif (view == "back"):
 		glRotatef(-90, 1, 0, 0)
 		glTranslatef(0, 25, 0)
 	elif (view == "left"):
-		glTranslatef(0, 0, -25)
+		glTranslatef(0, 0, -500)
 		glRotate(-90, 1, 0, 0)
 		glRotate(90, 0, 0, 1)
 	elif (view == "right"):
-		glTranslatef(0, 0, -25)
+		glTranslatef(0, 0, -500)
 		glRotate(-90, 1, 0, 0)
 		glRotate(-90, 0, 0, 1)
 
@@ -95,15 +96,12 @@ def main():
 
 	print("Construct bottom faces...")
 	triangles = delaunayTriangulizePolygon(vertices, boundary)
-	debugResult = NakedOBJ(vertices = vertices, faces = triangles)
-	debugResult.export("bottom.obj")
+	triangleCount = len(triangles)
 	
 	print("Extrude room...")
-	vertices, triangles = extrudeBoundary(vertices, boundary, triangles, model.height())
-	result = NakedOBJ(vertices = vertices, faces = triangles)
-	result.export("result.obj")
-
-	quit()
+	vertices, triangles, texcoords, texidc = extrudeBoundary(vertices, boundary, triangles, model.height())
+	result = NakedOBJ(vertices = vertices, faces = triangles, texcoords = texcoords, texidc = texidc, bottomTriangleCount = triangleCount)
+	result.export("Result", "result.obj")
 
 	#gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
 
@@ -151,7 +149,12 @@ def main():
 
 		if (len(views) > 0):
 			captureTexture(display, model, view)
+			print(view)
 			views.pop(0)
+		else:
+			pygame.display.quit()
+			pygame.quit()
+			sys.exit()
 
 		pygame.display.flip()
 		pygame.time.wait(10)
