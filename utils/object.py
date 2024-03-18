@@ -130,9 +130,11 @@ class OBJ:
 	
 	def center(self):
 		bbox = self.BBox()
+		print(self.BBox())
 		for i in range(len(self.vertices)):
 			v = self.vertices[i]
-			self.vertices[i] = v[0] - (bbox[1] - bbox[0]) / 2, v[1] - (bbox[3] - bbox[2]) / 2, v[2] - bbox[4]
+			self.vertices[i] = v[0] - (bbox[1] + bbox[0]) / 2, v[1] - (bbox[3] + bbox[2]) / 2, v[2] - bbox[4]
+		print(self.BBox())
 	
 	def orient(self, debug = False):
 		vertices = [list(v) for v in self.vertices]
@@ -235,6 +237,15 @@ class NakedOBJ:
 				v[0] * math.sin(angle) + v[1] * math.cos(angle),
 				v[2]
 			]
+
+	def BBox(self):
+		left = min(self.vertices, key = lambda x: x[0])
+		right = max(self.vertices, key = lambda x: x[0])
+		front = min(self.vertices, key = lambda x: x[1])
+		back = max(self.vertices, key = lambda x: x[1])
+		top = min(self.vertices, key = lambda x: x[2])
+		bottom = max(self.vertices, key = lambda x: x[2])
+		return left[0], right[0], front[1], back[1], top[2], bottom[2]
 
 	def export(self, foldername, filename):
 		with open(foldername + "/" + filename, 'w') as file:
