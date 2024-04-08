@@ -7,6 +7,7 @@ from pygame.locals import *
 from pygame.constants import *
 
 import numpy as np
+from skimage import io
 from PIL import Image
 
 from OpenGL.GL import *
@@ -15,6 +16,7 @@ from OpenGL.GLU import *
 from utils.object import OBJ, NakedOBJ
 from utils.mesh import triangulizePolygon, delaunayTriangulizePolygon, extractConvexBoundary, extrudeBoundary
 from utils.plot import *
+from utils.image import getAverage, getDominant, plotAverageDominant
 
 def boundingOrtho(display, bbox, view):
 	glLoadIdentity()
@@ -57,7 +59,7 @@ def boundingOrtho(display, bbox, view):
 		glTranslatef(0, -500, 0)
 	elif (view == "back"):
 		glRotatef(-90, 1, 0, 0)
-		glTranslatef(0, 25, 0)
+		glTranslatef(0, 500, 0)
 	elif (view == "left"):
 		glTranslatef(0, 0, -500)
 		glRotate(-90, 1, 0, 0)
@@ -73,7 +75,28 @@ def captureTexture(display, model, view):
 	image = Image.frombytes(mode="RGBA", size=(display[0], display[1]), data = pixels)
 	image = image.transpose(Image.FLIP_TOP_BOTTOM)
 	image = image.crop(image.getbbox())
+	# Ensure it's still 720 height
+	width = int((float(image.size[0]) * 720.0 / float(image.size[1])))
+	image = image.resize((width, 720))
 	image.save(f"Test/{view}.png")
+	return image
+
+def exportTexture(viewCaptures):
+	ceiling = np.ones(shape=(128, 128, 3), dtype=np.uint8) * np.uint8(getDominant(viewCaptures[0]))
+	io.imsave("./Result/ceiling.jpg", ceiling)
+	floor = np.ones(shape=(128, 128, 3), dtype=np.uint8) * np.uint8(getAverage(viewCaptures[1]))
+	io.imsave("./Result/floor.jpg", floor)
+	wallImages = viewCaptures[2:]
+	totalWidth = sum(img.width for img in wallImages)
+	wallOrigin = Image.new('RGBA', (totalWidth, 720))
+	offset = 0
+	for img in wallImages:
+		wallOrigin.paste(img, (offset, 0))
+		offset += img.width
+	wallOrigin.show()
+	wall = np.ones(shape=(128, 128, 3), dtype=np.uint8) * np.uint8(getDominant(wallOrigin))
+	io.imsave("./Result/wall.jpg", wall)
+
 
 def main():
 
@@ -106,10 +129,11 @@ def main():
 	#gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
 
 	glEnable(GL_DEPTH_TEST)
-	# glEnable(GL_CULL_FACE)
+	#glEnable(GL_CULL_FACE)
 	glCullFace(GL_FRONT)
 
 	views = ["top", "bottom", "front", "back", "left", "right"]
+	viewCaptures = []
 
 	while True:
 		for event in pygame.event.get():
@@ -148,10 +172,11 @@ def main():
 		glPopMatrix()
 
 		if (len(views) > 0):
-			captureTexture(display, model, view)
+			viewCaptures.append(captureTexture(display, model, view))
 			print(view)
 			views.pop(0)
 		else:
+			exportTexture(viewCaptures)
 			pygame.display.quit()
 			pygame.quit()
 			sys.exit()
