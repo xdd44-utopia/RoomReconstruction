@@ -18,6 +18,8 @@ from utils.mesh import triangulizePolygon, delaunayTriangulizePolygon, extractCo
 from utils.plot import *
 from utils.image import getAverage, getDominant, plotAverageDominant
 
+savePath = "./Result"
+
 def boundingOrtho(display, bbox, view):
 	glLoadIdentity()
 
@@ -83,9 +85,9 @@ def captureTexture(display, model, view):
 
 def exportTexture(viewCaptures):
 	ceiling = np.ones(shape=(128, 128, 3), dtype=np.uint8) * np.uint8(getDominant(viewCaptures[0]))
-	io.imsave("./Result/ceiling.jpg", ceiling)
+	io.imsave(os.path.join(savePath, "ceiling.jpg"), ceiling)
 	floor = np.ones(shape=(128, 128, 3), dtype=np.uint8) * np.uint8(getAverage(viewCaptures[1]))
-	io.imsave("./Result/floor.jpg", floor)
+	io.imsave(os.path.join(savePath, "floor.jpg"), floor)
 	wallImages = viewCaptures[2:]
 	totalWidth = sum(img.width for img in wallImages)
 	wallOrigin = Image.new('RGBA', (totalWidth, 720))
@@ -95,7 +97,7 @@ def exportTexture(viewCaptures):
 		offset += img.width
 	wallOrigin.show()
 	wall = np.ones(shape=(128, 128, 3), dtype=np.uint8) * np.uint8(getDominant(wallOrigin))
-	io.imsave("./Result/wall.jpg", wall)
+	io.imsave(os.path.join(savePath, "wall.jpg"), wall)
 
 
 def main():
@@ -116,6 +118,9 @@ def main():
 		sampleRate = 0.1,
 		distLimit = 20
 	)
+	with open(os.path.join(savePath, "boundary.txt"), 'w') as file:
+		for i in boundary:
+			file.write(f"{vertices[i][0]},{vertices[i][1]}\n")
 
 	print("Construct bottom faces...")
 	triangles = delaunayTriangulizePolygon(vertices, boundary)
@@ -124,7 +129,7 @@ def main():
 	print("Extrude room...")
 	vertices, triangles, texcoords, texidc = extrudeBoundary(vertices, boundary, triangles, model.height())
 	result = NakedOBJ(vertices = vertices, faces = triangles, texcoords = texcoords, texidc = texidc, bottomTriangleCount = triangleCount)
-	result.export("Result", "result.obj")
+	result.export(savePath, "result.obj")
 
 	#gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
 

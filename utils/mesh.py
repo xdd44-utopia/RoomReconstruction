@@ -272,10 +272,14 @@ def delaunayTriangulizePolygon(vertices: np.ndarray, boundary: list):
 	
 	triangles = []
 	for triangle in delaunayTriangles.simplices:
+		center = (vertices[triangle[0]] + vertices[triangle[1]] + vertices[triangle[2]]) / 3
+		p1 = vertices[triangle[0]] + (center - vertices[triangle[0]]) * 0.01
+		p2 = vertices[triangle[1]] + (center - vertices[triangle[1]]) * 0.01
+		p3 = vertices[triangle[2]] + (center - vertices[triangle[2]]) * 0.01
 		if (
-			isLineSegmentInsidePolygon(vertices, boundary, vertices[triangle[0]], vertices[triangle[1]]) and
-			isLineSegmentInsidePolygon(vertices, boundary, vertices[triangle[0]], vertices[triangle[2]]) and
-			isLineSegmentInsidePolygon(vertices, boundary, vertices[triangle[1]], vertices[triangle[2]])
+			isLineSegmentInsidePolygon(vertices, boundary, p1, p2) and
+			isLineSegmentInsidePolygon(vertices, boundary, p1, p3) and
+			isLineSegmentInsidePolygon(vertices, boundary, p2, p3)
 		):
 			triangles.append(triangle)
 	

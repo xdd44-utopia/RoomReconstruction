@@ -5,6 +5,7 @@ import math
 
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 from utils.fit_plane import extract_planes
 from utils.mesh import extractConvexBoundary
@@ -247,8 +248,8 @@ class NakedOBJ:
 		bottom = max(self.vertices, key = lambda x: x[2])
 		return left[0], right[0], front[1], back[1], top[2], bottom[2]
 
-	def export(self, foldername, filename):
-		with open(foldername + "/" + filename, 'w') as file:
+	def export(self, savePath, filename):
+		with open(os.path.join(savePath, filename), 'w') as file:
 			file.write('mtllib result.mtl\n')
 			file.write('o result\n')
 			for v in self.vertices:
