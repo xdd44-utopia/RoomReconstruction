@@ -109,7 +109,7 @@ def main():
 	display = (1280, 720)
 	pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
 
-	model = OBJ("Scan", "test1.obj", swapyz=True)
+	model = OBJ("Scan", "test2.obj", swapyz=True)
 	BBox = model.BBox()
 
 	print("Extract boundary...")

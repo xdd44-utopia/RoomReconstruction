@@ -2,12 +2,12 @@ import pygame
 from OpenGL.GL import *
 from tqdm import tqdm
 import math
+from sklearn.cluster import DBSCAN
 
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-from utils.fit_plane import extract_planes
 from utils.mesh import extractConvexBoundary
 
 def MTL(foldername, filename):
@@ -131,24 +131,24 @@ class OBJ:
 	
 	def center(self):
 		bbox = self.BBox()
-		print(self.BBox())
 		for i in range(len(self.vertices)):
 			v = self.vertices[i]
 			self.vertices[i] = v[0] - (bbox[1] + bbox[0]) / 2, v[1] - (bbox[3] + bbox[2]) / 2, v[2] - bbox[4]
-		print(self.BBox())
 	
 	def orient(self, debug = False):
-		vertices = [list(v) for v in self.vertices]
-		sample_points = np.random.choice(len(vertices), int(len(vertices) / 10)).tolist()
-		sample_vertices = np.array(vertices)[sample_points]
-		plane_eqs, plane_points, remaining_points = extract_planes(sample_vertices)
-
-		norm = plane_eqs[0]
-		i = 0
-		while (norm[2] > 0.01 and i < len(plane_eqs)):
-			norm = plane_eqs[i]
-			i += 1
-		theta = math.atan(norm[1] / norm[0])
+		normals = []
+		for v in self.normals:
+			if (v[2] < 0.05 and v[2] > -0.05):
+				normals.append(v)
+		sample_indices = np.random.choice(len(normals), int(len(normals) / 10)).tolist()
+		sample_normals = np.array(normals)[sample_indices]
+		dbscan = DBSCAN(eps=0.04, min_samples=20)
+		clusters = dbscan.fit_predict(sample_normals)
+		unique_clusters, counts = np.unique(clusters[clusters >= 0], return_counts=True)
+		max_cluster = unique_clusters[np.argmax(counts)]
+		cluster_normals = sample_normals[clusters == max_cluster]
+		cluster_mean = np.mean(cluster_normals, axis=0)
+		theta = math.atan(cluster_mean[1] / cluster_mean[0])
 
 		if (debug):
 			fig = plt.figure()
